@@ -36,6 +36,8 @@
 #include "netutils/netlib.h"
 #include "netutils/webclient.h"
 
+#include "sslutils/sslutil.h"
+
 /****************************************************************************
  * Preprocessor Definitions
  ****************************************************************************/
@@ -146,11 +148,6 @@ int main(int argc, FAR char *argv[])
   netlib_ifup("eth0");
 #endif /* CONFIG_NSH_NETINIT */
 
-  /* Print arguments */
-
-  printf("argc\t= %d\n", argc);
-  printf("argv\t= %p\n", argv);
-
   /* Then start the server */
 
   struct webclient_context ctx;
@@ -160,6 +157,9 @@ int main(int argc, FAR char *argv[])
   ctx.buflen = 512;
   ctx.sink_callback = callback;
   ctx.sink_callback_arg = NULL;
+
+  struct sslutil_tls_context tls_ctx;
+  SSLUTIL_CTX_INIT(&tls_ctx);
 
   if (argc >= 3)
     {
@@ -185,6 +185,12 @@ int main(int argc, FAR char *argv[])
 
   if (g_fd >= 0)
     {
+      if (strstr(ctx.url, "https") == ctx.url)
+        {
+          ctx.tls_ops = sslutil_webclient_tlsops();
+          ctx.tls_ctx = &tls_ctx;
+        }
+
       int ret = webclient_perform(&ctx);
       if (ret != 0)
         {

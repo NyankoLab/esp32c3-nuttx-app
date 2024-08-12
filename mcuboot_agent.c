@@ -38,6 +38,9 @@
 
 #include <bootutil/bootutil_public.h>
 
+#include "miniz/miniz.h"
+#include "sslutils/sslutil.h"
+
 #ifdef CONFIG_EXAMPLES_MCUBOOT_UPDATE_AGENT_DL_VERIFY_MD5
 #include "netutils/md5.h"
 #endif
@@ -70,6 +73,13 @@ struct download_context_s
   FAR const struct flash_area *fa;
   uint32_t                     fa_offset;
   ssize_t                      image_size;
+#ifdef MINIZ_HEADER_INCLUDED
+  tinfl_decompressor          *decompressor;
+  void                        *decompressor_dictionary;
+  int                          decompressor_offset;
+  int                          decompressor_finish;
+  int                          decompressor_inside;
+#endif
 #ifdef CONFIG_EXAMPLES_MCUBOOT_UPDATE_AGENT_DL_VERIFY_MD5
   MD5_CTX                      md5_ctx;
 #endif
@@ -133,6 +143,54 @@ static int sink_callback(FAR char **buffer, int offset, int datend,
     {
       uint32_t progress;
 
+#ifdef MINIZ_HEADER_INCLUDED
+      char *data = &((*buffer)[offset]);
+      if (ctx->fa_offset == 0)
+        {
+          if (memcmp(data, "\x1F\x8B\x08\x00", 4) == 0)
+            {
+              ctx->image_size = 1048576;
+              ctx->decompressor = realloc(ctx->decompressor, sizeof(tinfl_decompressor));
+              ctx->decompressor_dictionary = realloc(ctx->decompressor_dictionary, TINFL_LZ_DICT_SIZE);
+              ctx->decompressor_offset = 0;
+              ctx->decompressor_finish = 0;
+              tinfl_init(ctx->decompressor);
+            }
+        }
+      if (ctx->decompressor && ctx->decompressor_inside == 0)
+        {
+          size_t avail_in = ctx->fa_offset ? length : length - 10;
+          void* next_in = ctx->fa_offset ? data : data + 10;
+
+          while (ctx->decompressor_finish == 0)
+            {
+              void* next_out = ctx->decompressor_dictionary + ctx->decompressor_offset;
+
+              size_t in_bytes = avail_in;
+              size_t out_bytes = TINFL_LZ_DICT_SIZE - ctx->decompressor_offset;
+              tinfl_status status = tinfl_decompress(ctx->decompressor, next_in, &in_bytes, ctx->decompressor_dictionary, next_out, &out_bytes, TINFL_FLAG_HAS_MORE_INPUT);
+              ctx->decompressor_offset = (ctx->decompressor_offset + out_bytes) & (TINFL_LZ_DICT_SIZE - 1);
+
+              if (status >= TINFL_STATUS_DONE)
+                {
+                  ctx->decompressor_inside = 1;
+                  sink_callback((char**)&next_out, 0, out_bytes, 0, arg); 
+                  ctx->decompressor_inside = 0;
+                  ctx->decompressor_finish = status == TINFL_STATUS_DONE ? 1 : 0;
+                }
+
+              avail_in -= in_bytes;
+              next_in += in_bytes;
+
+              if (status == TINFL_STATUS_DONE || avail_in == 0)
+                {
+                  break;
+                }
+            }
+
+          return 0;
+        }
+#endif
       flash_area_write(ctx->fa, ctx->fa_offset, &((*buffer)[offset]),
                        length);
 
@@ -171,6 +229,13 @@ static int download_firmware_image(FAR const char *url)
   dl_ctx.fa = NULL;
   dl_ctx.fa_offset = 0;
   dl_ctx.image_size = -1;
+#ifdef MINIZ_HEADER_INCLUDED
+  dl_ctx.decompressor = 0;
+  dl_ctx.decompressor_dictionary = 0;
+  dl_ctx.decompressor_offset = 0;
+  dl_ctx.decompressor_finish = 0;
+  dl_ctx.decompressor_inside = 0;
+#endif
 
 #ifdef CONFIG_EXAMPLES_MCUBOOT_UPDATE_AGENT_DL_VERIFY_MD5
   md5_init(&dl_ctx.md5_ctx);
@@ -185,6 +250,15 @@ static int download_firmware_image(FAR const char *url)
   client_ctx.sink_callback = sink_callback;
   client_ctx.sink_callback_arg = &dl_ctx;
   client_ctx.url = url;
+
+  struct sslutil_tls_context tls_ctx;
+  SSLUTIL_CTX_INIT(&tls_ctx);
+
+  if (strstr(url, "https") == url)
+    {
+      client_ctx.tls_ops = sslutil_webclient_tlsops();
+      client_ctx.tls_ctx = &tls_ctx;
+    }
 
   ret = flash_area_open(FLASH_AREA_IMAGE_SECONDARY(0), &dl_ctx.fa);
   if (ret != OK)

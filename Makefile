@@ -13,10 +13,10 @@ CDEFINES += -DCONFIG_EXAMPLES_WGET_NETMASK
 CDEFINES += -DCONFIG_EXAMPLES_WGET_URL=\"\"
 CDEFINES += -DCONFIG_NET
 CDEFINES += -DCONFIG_NET_TCP
-CFLAGS = -Oz -nostdlib
+CFLAGS = -Os -nostdlib -ffunction-sections -fdata-sections
 #CFLAGS += --target=riscv32-esp-elf -march=rv32imc -mabi=ilp32 -fuse-ld=lld
-CFLAGS += -Wl,-e,main,-r,-T,binfmt/libelf/gnu-elf.ld
-CINCLUDE = -Iboot -Iinclude
+CFLAGS += -Wl,-e,main,-r,-T,binfmt/libelf/gnu-elf.ld,--gc-sections
+CINCLUDE = -I. -Iboot -Iinclude
 
 SRCS = hello.c mcuboot_agent.c wget.c
 BINS = $(addprefix apps/,$(basename $(SRCS)))
@@ -30,12 +30,12 @@ apps/%: %.c
 	$(CC) $(CDEFINES) $(CFLAGS) $(CINCLUDE) $< -o $@
 
 apps/mcuboot_agent: boot/bootutil/bootutil_misc.c boot/bootutil/bootutil_public.c boot/flash_map_backend/flash_map_backend.c riscv/div.o mcuboot_agent.c
-	$(CC) $(CDEFINES) $(CFLAGS) $(CINCLUDE) $^ -o $@
+	$(CC) $(CDEFINES) $(CFLAGS) $(CINCLUDE) $^ -o $@ -Wl,-T,binfmt/libelf/esp32c3.rom.miniz.ld
 
 riscv/div.o: riscv/div.S
-	$(CC) $(CDEFINES) $(CFLAGS) $(CINCLUDE) $^ -o $@
+	$(CC) $^ -o $@
 
 clean:
 	rm -f *.o
-	rm -f apps/*
+	rm -f apps/*.*
 	rm -f riscv/div.o
