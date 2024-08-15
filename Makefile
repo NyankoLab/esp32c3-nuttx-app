@@ -1,5 +1,5 @@
-CC = ~/.espressif/tools/riscv32-esp-elf/esp-13.2.0_20240530/riscv32-esp-elf/bin/riscv32-esp-elf-gcc
-#CC = /opt/homebrew/opt/llvm/bin/clang
+#CC = ~/.espressif/tools/riscv32-esp-elf/esp-13.2.0_20240530/riscv32-esp-elf/bin/riscv32-esp-elf-gcc
+CC = /opt/homebrew/opt/llvm/bin/clang
 CDEFINES = -DCONFIG_NSH_NETINIT
 CDEFINES += -DCONFIG_EXAMPLES_MCUBOOT_UPDATE_AGENT_DL_BUFFER_SIZE=512
 CDEFINES += -DCONFIG_EXAMPLES_MCUBOOT_UPDATE_AGENT_UPDATE_URL=\"\"
@@ -14,7 +14,7 @@ CDEFINES += -DCONFIG_EXAMPLES_WGET_URL=\"\"
 CDEFINES += -DCONFIG_NET
 CDEFINES += -DCONFIG_NET_TCP
 CFLAGS = -Os -nostdlib -ffunction-sections -fdata-sections
-#CFLAGS += --target=riscv32-esp-elf -march=rv32imc -mabi=ilp32 -fuse-ld=lld
+CFLAGS += --target=riscv32-esp-elf -march=rv32imc -mabi=ilp32 -fuse-ld=lld
 CFLAGS += -Wl,-e,main,-r,-T,binfmt/libelf/gnu-elf.ld,--gc-sections
 CINCLUDE = -I. -Iboot -Iinclude
 
