@@ -48,6 +48,10 @@
 #include <stdint.h>
 #include <nuttx/net/netconfig.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define HTTPD_IOBUFFER_SIZE (3*MIN_TCP_MSS)
 
 /* This is the maximum size of a file path */
@@ -131,6 +135,10 @@ int  httpd_mmap_close(struct httpd_fs_file *file);
 int  httpd_fs_open(const char *name, struct httpd_fs_file *file);
 void httpd_fs_init(void);
 
+#endif
+
+#ifdef __cplusplus
+}
 #endif
 
 #endif /* _NETUTILS_WEBSERVER_HTTPD_H */

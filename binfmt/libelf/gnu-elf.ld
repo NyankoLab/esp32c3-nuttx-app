@@ -100,6 +100,20 @@ SECTIONS
       _ebss = . ;
     }
 
+  .rela.rodata :
+    {
+      *(.rela.rodata)
+      *(.rela.rodata.*)
+      *(.rela.gnu.linkonce.t.*)
+    }
+
+  .rela.text :
+    {
+      *(.rela.text)
+      *(.rela.text.*)
+      *(.rela.gnu.linkonce.r.*) 
+    }
+
     /* Stabs debugging sections.    */
 
     .stab 0 : { *(.stab) }

@@ -38,6 +38,10 @@
 
 #include "netutils/webclient.h"
 
+#if __cplusplus
+extern "C" {
+#endif
+
 struct sslutil_tls_context
 {
   FAR const char *ca_dir;
@@ -72,5 +76,9 @@ struct sslutil_tls_context
   do { (p_ctx)->custom_id = id; }while(0)
 
 struct webclient_tls_ops *sslutil_webclient_tlsops(void);
+
+#if __cplusplus
+}
+#endif
 
 #endif  /* __EXTERNALS_SSLUTILS_SSLUTIL_H__ */
